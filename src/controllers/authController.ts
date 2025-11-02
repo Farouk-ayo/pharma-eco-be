@@ -5,10 +5,10 @@ import Admin from "../models/admin";
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { Email, Password } = req.body;
+    const { email, password } = req.body;
 
     // Validate input
-    if (!Email || !Password) {
+    if (!email || !password) {
       res.status(400).json({
         success: false,
         message: "Email and password are required",
@@ -17,7 +17,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Find admin
-    const admin = await Admin.findOne({ email: Email.toLowerCase() });
+    const admin = await Admin.findOne({ email: email.toLowerCase() });
 
     if (!admin) {
       res.status(401).json({
@@ -28,7 +28,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Check password
-    const isPasswordValid = await bcrypt.compare(Password, admin.password);
+    const isPasswordValid = await bcrypt.compare(password, admin.password);
 
     if (!isPasswordValid) {
       res.status(401).json({

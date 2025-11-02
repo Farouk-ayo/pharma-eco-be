@@ -19,7 +19,7 @@ app.use(express.urlencoded({ extended: true }));
 connectDB();
 
 // Routes
-app.use("/api/admin", authRoutes);
+app.use("/admin", authRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "PharmaEco API is running" });
