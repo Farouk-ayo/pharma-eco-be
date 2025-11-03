@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import connectDB from "./config/database";
 import authRoutes from "./routes/authRoutes";
+import regRoutes from "./routes/regRoutes";
 
 // Load environment variables
 dotenv.config();
@@ -20,6 +21,7 @@ connectDB();
 
 // Routes
 app.use("/admin", authRoutes);
+app.use("/register", regRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "PharmaEco API is running" });
