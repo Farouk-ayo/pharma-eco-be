@@ -3,7 +3,8 @@
     "dev": "nodemon src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "seed": "ts-node src/seedAdmin.ts"
+    "seed": "ts-node src/seedAdmin.ts",
+    "vercel-build": "echo 'Building for Vercel'"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

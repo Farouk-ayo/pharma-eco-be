@@ -5,6 +5,7 @@ import connectDB from "./config/database";
 import authRoutes from "./routes/authRoutes";
 import regRoutes from "./routes/regRoutes";
 import feedbackRoutes from "./routes/feedbackRoutes";
+import articleRoutes from "./routes/articleRoutes";
 
 // Load environment variables
 dotenv.config();
@@ -14,8 +15,8 @@ const app: Application = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "100mb" }));
+app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 
 // Connect to MongoDB
 connectDB();
@@ -24,6 +25,7 @@ connectDB();
 app.use("/admin", authRoutes);
 app.use("/register", regRoutes);
 app.use("/feedback", feedbackRoutes);
+app.use("/article", articleRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "PharmaEco API is running" });
