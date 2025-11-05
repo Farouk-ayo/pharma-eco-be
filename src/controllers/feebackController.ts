@@ -14,7 +14,6 @@ export const createFeedback = async (
       phoneNumber,
       organizationName,
       message,
-      newsUpdates,
     } = req.body;
 
     // Validate required fields
@@ -41,7 +40,6 @@ export const createFeedback = async (
       phoneNumber,
       organizationName,
       message,
-      newsUpdates: newsUpdates || false,
     });
 
     await feedback.save();

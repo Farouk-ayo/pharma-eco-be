@@ -7,7 +7,6 @@ export interface IFeedback extends Document {
   phoneNumber: string;
   organizationName: string;
   message: string;
-  newsUpdates: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,10 +43,6 @@ const FeedbackSchema: Schema = new Schema(
       type: String,
       required: true,
       trim: true,
-    },
-    newsUpdates: {
-      type: Boolean,
-      default: false,
     },
   },
   {
