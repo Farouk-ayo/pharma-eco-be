@@ -45,7 +45,8 @@ export const createArticle = async (
     const {
       title,
       author,
-      caption,
+      references,
+      introduction,
       subtitle1,
       content1,
       subtitle2,
@@ -54,17 +55,21 @@ export const createArticle = async (
       content3,
       subtitle4,
       content4,
+      subtitle5,
+      content5,
       articleImage1,
       articleImage2,
       articleImage3,
       articleImage4,
+      articleImage5,
     } = req.body;
 
     // Validate required fields
     if (
       !title ||
       !author ||
-      !caption ||
+      !references ||
+      !introduction ||
       !subtitle1 ||
       !content1 ||
       !articleImage1 ||
@@ -91,11 +96,17 @@ export const createArticle = async (
       image4 = await uploadToCloudinary(articleImage4);
     }
 
+    let image5 = null;
+    if (articleImage5) {
+      image5 = await uploadToCloudinary(articleImage5);
+    }
+
     // Create article
     const article = new Article({
       title,
       author,
-      caption,
+      references,
+      introduction,
       subtitle1,
       content1,
       subtitle2,
@@ -104,6 +115,8 @@ export const createArticle = async (
       content3,
       subtitle4,
       content4,
+      subtitle5,
+      content5,
       articleImage1Url: image1.url,
       articleImage1Id: image1.publicId,
       articleImage2Url: image2.url,
@@ -112,6 +125,8 @@ export const createArticle = async (
       articleImage3Id: image3?.publicId,
       articleImage4Url: image4?.url,
       articleImage4Id: image4?.publicId,
+      articleImage5Url: image5?.url,
+      articleImage5Id: image5?.publicId,
     });
 
     await article.save();
@@ -195,7 +210,8 @@ export const updateArticle = async (
     const {
       title,
       author,
-      caption,
+      references,
+      introduction,
       subtitle1,
       content1,
       subtitle2,
@@ -204,10 +220,13 @@ export const updateArticle = async (
       content3,
       subtitle4,
       content4,
+      subtitle5,
+      content5,
       articleImage1,
       articleImage2,
       articleImage3,
       articleImage4,
+      articleImage5,
     } = req.body;
 
     const article = await Article.findById(id);
@@ -261,13 +280,24 @@ export const updateArticle = async (
       image4Data = await uploadToCloudinary(articleImage4);
     }
 
+    let image5Data = {
+      url: article.articleImage5Url,
+      publicId: article.articleImage5Id,
+    };
+    if (articleImage5 && articleImage5.startsWith("data:")) {
+      if (article.articleImage5Id) {
+        await deleteFromCloudinary(article.articleImage5Id);
+      }
+      image5Data = await uploadToCloudinary(articleImage5);
+    }
     // Update article
     const updatedArticle = await Article.findByIdAndUpdate(
       id,
       {
         title,
         author,
-        caption,
+        references,
+        introduction,
         subtitle1,
         content1,
         subtitle2,
@@ -276,6 +306,8 @@ export const updateArticle = async (
         content3,
         subtitle4,
         content4,
+        subtitle5,
+        content5,
         articleImage1Url: image1Data.url,
         articleImage1Id: image1Data.publicId,
         articleImage2Url: image2Data.url,
@@ -284,6 +316,8 @@ export const updateArticle = async (
         articleImage3Id: image3Data.publicId,
         articleImage4Url: image4Data.url,
         articleImage4Id: image4Data.publicId,
+        articleImage5Url: image5Data.url,
+        articleImage5Id: image5Data.publicId,
       },
       { new: true, runValidators: true }
     );
@@ -330,6 +364,10 @@ export const deleteArticle = async (
 
     if (article.articleImage4Id) {
       await deleteFromCloudinary(article.articleImage4Id);
+    }
+
+    if (article.articleImage5Id) {
+      await deleteFromCloudinary(article.articleImage5Id);
     }
 
     // Delete article from database

@@ -3,7 +3,8 @@ import mongoose, { Document, Schema } from "mongoose";
 export interface IArticle extends Document {
   title: string;
   author: string;
-  caption: string;
+  references: string;
+  introduction: string;
   subtitle1: string;
   content1: string;
   subtitle2?: string;
@@ -12,6 +13,8 @@ export interface IArticle extends Document {
   content3?: string;
   subtitle4?: string;
   content4?: string;
+  subtitle5?: string;
+  content5?: string;
   articleImage1Url: string;
   articleImage1Id: string;
   articleImage2Url: string;
@@ -20,6 +23,8 @@ export interface IArticle extends Document {
   articleImage3Id?: string;
   articleImage4Url?: string;
   articleImage4Id?: string;
+  articleImage5Url?: string;
+  articleImage5Id?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,7 +41,12 @@ const ArticleSchema: Schema = new Schema(
       required: true,
       trim: true,
     },
-    caption: {
+    references: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    introduction: {
       type: String,
       required: true,
       trim: true,
@@ -71,6 +81,13 @@ const ArticleSchema: Schema = new Schema(
     content4: {
       type: String,
     },
+    subtitle5: {
+      type: String,
+      trim: true,
+    },
+    content5: {
+      type: String,
+    },
     articleImage1Url: {
       type: String,
       required: true,
@@ -97,6 +114,12 @@ const ArticleSchema: Schema = new Schema(
       type: String,
     },
     articleImage4Id: {
+      type: String,
+    },
+    articleImage5Url: {
+      type: String,
+    },
+    articleImage5Id: {
       type: String,
     },
   },
