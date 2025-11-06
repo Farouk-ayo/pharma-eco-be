@@ -19,6 +19,7 @@ const corsOptions = {
     const allowedOrigins = [
       "http://localhost:3000",
       "https://pharma-eco.vercel.app",
+      "https://www.pharmaeco.org",
     ];
 
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
