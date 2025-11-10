@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import axios from "axios";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import dotenv from "dotenv";
+dotenv.config();
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -9,8 +11,7 @@ const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 // WhatsApp API Configuration
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || "";
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || "849774458223750";
-const VERIFY_TOKEN =
-  process.env.WEBHOOK_VERIFY_TOKEN || "pharmaeco_verify_token_2025";
+const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || "pharmaeco_2025";
 const WHATSAPP_API_URL = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
 
 // Store conversation history (in production, use Redis or MongoDB)
@@ -21,6 +22,8 @@ export const verifyWebhook = (req: Request, res: Response) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
+
+  console.log(mode, token, challenge);
 
   if (mode === "subscribe" && token === VERIFY_TOKEN) {
     console.log("✅ Webhook verified successfully!");
