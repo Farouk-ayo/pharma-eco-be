@@ -1,20 +1,16 @@
 import { Request, Response } from "express";
 import axios from "axios";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
 dotenv.config();
-
-// Initialize Gemini AI with updated model
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // ✅ Updated model
 
 // WhatsApp API Configuration
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || "";
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || "849774458223750";
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || "pharmaeco_2025";
 const WHATSAPP_API_URL = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
-// Store conversation history (in production, use Redis or MongoDB)
+// Store conversation history
 const conversationHistory = new Map<string, any[]>();
 
 // Webhook verification for Meta
@@ -39,27 +35,21 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
   try {
     const body = req.body;
 
-    // Check if it's a WhatsApp message
     if (body.object === "whatsapp_business_account") {
       const entry = body.entry?.[0];
       const changes = entry?.changes?.[0];
       const value = changes?.value;
 
-      // Check if message exists
       if (value?.messages?.[0]) {
         const message = value.messages[0];
-        const from = message.from; // User's phone number
+        const from = message.from;
         const messageBody = message.text?.body;
         const messageType = message.type;
 
         console.log(`📩 Message from ${from}: ${messageBody}`);
 
-        // Only process text messages
         if (messageType === "text" && messageBody) {
-          // Get AI response
           const aiResponse = await generateAIResponse(from, messageBody);
-
-          // Send response back to user
           await sendWhatsAppMessage(from, aiResponse);
         }
       }
@@ -72,17 +62,23 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
   }
 };
 
-// Generate AI response using Gemini
+// Generate AI response using Gemini REST API
 async function generateAIResponse(
   userId: string,
   userMessage: string
 ): Promise<string> {
   try {
-    // Get or initialize conversation history
     let history = conversationHistory.get(userId) || [];
 
-    // System prompt for PharmaEcoBot
-    const systemPrompt = `You are PharmaEcoBot, the AI assistant for PharmaEco - Nigeria's leading pharmaceutical waste management social enterprise.
+    // Build conversation history string
+    const conversationHistoryStr = history
+      .slice(-4)
+      .map(
+        (msg) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`
+      )
+      .join("\n");
+
+    const PHARMAECO_CONTEXT = `You are PharmaEcoBot, the AI assistant for PharmaEco - Nigeria's leading pharmaceutical waste management social enterprise.
 
 IDENTITY:
 - You are friendly, helpful, and environmentally conscious
@@ -115,24 +111,44 @@ You can:
 ✅ Find collection points near you
 ✅ Learn how to dispose waste safely
 ✅ Register with PharmaEco
-✅ Report environmental hazards"
+✅ Report environmental hazards"`;
 
-USER MESSAGE: ${userMessage}
+    const prompt = `${PHARMAECO_CONTEXT}\n\nConversation history:\n${conversationHistoryStr}\n\nUser: ${userMessage}\nAssistant:`;
 
-Current conversation context: ${
-      history.length > 0
-        ? JSON.stringify(history.slice(-4))
-        : "New conversation"
+    // Call Gemini API
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: prompt }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.9,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 1024,
+          },
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      console.error("❌ Gemini API Error:", errorData);
+      throw new Error(`Gemini API error: ${res.status}`);
     }
 
-Respond naturally and helpfully:`;
+    const data = await res.json();
+    const botReply =
+      data.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "Sorry, I couldn't generate a response.";
 
-    // Generate response
-    const result = await model.generateContent(systemPrompt);
-    const response = result.response;
-    const botReply = response.text();
-
-    // Update conversation history (keep last 10 messages)
+    // Update conversation history
     history.push({ role: "user", content: userMessage });
     history.push({ role: "assistant", content: botReply });
     if (history.length > 20) history = history.slice(-20);
@@ -140,13 +156,13 @@ Respond naturally and helpfully:`;
 
     console.log(`✅ AI response generated for ${userId}`);
     return botReply;
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Gemini API Error:", error);
     return "Sorry, I'm having trouble right now. Please try again in a moment or visit https://pharmaeco.org for more info! 🌱";
   }
 }
 
-// Send WhatsApp message using Cloud API
+// Send WhatsApp message
 async function sendWhatsAppMessage(to: string, message: string): Promise<void> {
   try {
     const payload = {
