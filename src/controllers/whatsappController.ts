@@ -4,9 +4,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
 dotenv.config();
 
-// Initialize Gemini AI
+// Initialize Gemini AI with updated model
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // ✅ Updated model
 
 // WhatsApp API Configuration
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || "";
@@ -23,7 +23,7 @@ export const verifyWebhook = (req: Request, res: Response) => {
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  console.log(mode, token, challenge);
+  console.log("🔍 Webhook verification:", mode, token);
 
   if (mode === "subscribe" && token === VERIFY_TOKEN) {
     console.log("✅ Webhook verified successfully!");
@@ -138,6 +138,7 @@ Respond naturally and helpfully:`;
     if (history.length > 20) history = history.slice(-20);
     conversationHistory.set(userId, history);
 
+    console.log(`✅ AI response generated for ${userId}`);
     return botReply;
   } catch (error) {
     console.error("❌ Gemini API Error:", error);
