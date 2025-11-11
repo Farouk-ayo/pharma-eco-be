@@ -12,8 +12,9 @@ const uploadToCloudinary = async (
       folder,
       resource_type: "image",
       transformation: [
-        { width: 1600, height: 1200, crop: "limit" },
-        { quality: "auto:good" },
+        { width: 2400, height: 1800, crop: "limit" },
+        { quality: "auto:best" },
+        { fetch_format: "auto" },
       ],
     });
 

@@ -9,7 +9,7 @@ const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || "780541721820176";
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || "pharmaeco_2025";
 const WHATSAPP_API_URL = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-const GEMINI_MODEL = "gemini-2.5-flash-lite"; // Updated to current model
+const GEMINI_MODEL = "gemini-2.5-flash-lite";
 
 // Rate Limiter
 class RateLimiter {
