@@ -3,26 +3,76 @@ import axios from "axios";
 import dotenv from "dotenv";
 dotenv.config();
 
-// WhatsApp API Configuration
+// Configuration
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || "";
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || "849774458223750";
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || "pharmaeco_2025";
 const WHATSAPP_API_URL = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const GEMINI_MODEL = "gemini-2.5-flash-lite"; // Updated to current model
 
-// Store conversation history
+// Rate Limiter
+class RateLimiter {
+  private queue: Array<() => Promise<void>> = [];
+  private processing = false;
+  private requestCount = 0;
+  private lastResetTime = Date.now();
+  private readonly MAX_RPM = 8;
+
+  async addToQueue<T>(task: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.queue.push(async () => {
+        try {
+          const result = await task();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      });
+      this.processQueue();
+    });
+  }
+
+  private async processQueue() {
+    if (this.processing || this.queue.length === 0) return;
+    this.processing = true;
+
+    while (this.queue.length > 0) {
+      const now = Date.now();
+      if (now - this.lastResetTime > 60000) {
+        this.requestCount = 0;
+        this.lastResetTime = now;
+      }
+
+      if (this.requestCount >= this.MAX_RPM) {
+        const waitTime = 60000 - (now - this.lastResetTime);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        this.requestCount = 0;
+        this.lastResetTime = Date.now();
+      }
+
+      const task = this.queue.shift();
+      if (task) {
+        this.requestCount++;
+        await task();
+      }
+    }
+
+    this.processing = false;
+  }
+}
+
+const rateLimiter = new RateLimiter();
 const conversationHistory = new Map<string, any[]>();
 
-// Webhook verification for Meta
+// Webhook verification
 export const verifyWebhook = (req: Request, res: Response) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  console.log("🔍 Webhook verification:", mode, token);
-
   if (mode === "subscribe" && token === VERIFY_TOKEN) {
-    console.log("✅ Webhook verified successfully!");
+    console.log("✅ Webhook verified");
     res.status(200).send(challenge);
   } else {
     console.log("❌ Webhook verification failed");
@@ -30,7 +80,7 @@ export const verifyWebhook = (req: Request, res: Response) => {
   }
 };
 
-// Handle incoming WhatsApp messages
+// Handle incoming messages
 export const handleIncomingMessage = async (req: Request, res: Response) => {
   try {
     const body = req.body;
@@ -49,7 +99,10 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
         console.log(`📩 Message from ${from}: ${messageBody}`);
 
         if (messageType === "text" && messageBody) {
-          const aiResponse = await generateAIResponse(from, messageBody);
+          const aiResponse = await generateAIResponseWithRetry(
+            from,
+            messageBody
+          );
           await sendWhatsAppMessage(from, aiResponse);
         }
       }
@@ -62,7 +115,41 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
   }
 };
 
-// Generate AI response using Gemini REST API
+// Generate AI response with retry
+async function generateAIResponseWithRetry(
+  userId: string,
+  userMessage: string,
+  maxRetries = 3
+): Promise<string> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await rateLimiter.addToQueue(() =>
+        generateAIResponse(userId, userMessage)
+      );
+    } catch (error: any) {
+      const errorData = error.response?.data || error;
+
+      if (errorData.error?.code === 429 || error.status === 429) {
+        const waitSeconds = 22; // From error message
+        console.log(`⏳ Quota exceeded. Waiting ${waitSeconds}s...`);
+
+        if (attempt < maxRetries - 1) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, waitSeconds * 1000)
+          );
+        } else {
+          return "I'm experiencing high demand right now. Please try again in a few moments! 🙏";
+        }
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  return "Sorry, I'm temporarily unavailable. Please try again later or visit https://pharmaeco.org";
+}
+
+// Generate AI response
 async function generateAIResponse(
   userId: string,
   userMessage: string
@@ -70,68 +157,35 @@ async function generateAIResponse(
   try {
     let history = conversationHistory.get(userId) || [];
 
-    // Build conversation history string
     const conversationHistoryStr = history
-      .slice(-4)
-      .map(
-        (msg) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`
-      )
+      .slice(-2) // Only last 2 exchanges
+      .map((msg) => `${msg.role === "user" ? "U" : "A"}: ${msg.content}`)
       .join("\n");
 
-    const PHARMAECO_CONTEXT = `You are PharmaEcoBot, the AI assistant for PharmaEco - Nigeria's leading pharmaceutical waste management social enterprise.
+    const PHARMAECO_CONTEXT = `You are PharmaEcoBot for PharmaEco Nigeria. Help with pharmaceutical waste disposal.
 
-IDENTITY:
-- You are friendly, helpful, and environmentally conscious
-- You guide users on safe pharmaceutical waste disposal
-- You promote circular economy and sustainability
-- You are available 24/7
+Services:
+1. Find collection points in Lagos
+2. Disposal guidelines
+3. Registration
+4. Report hazards
 
-CORE SERVICES:
-1. Guide users to nearest collection points in Lagos, Nigeria
-2. Educate on proper disposal of expired/unused medicines
-3. Explain what pharmaceutical waste can be recycled (blister packs, cartons, plastics, tubes, leaflets)
-4. Register new households, pharmacies, and hospitals
-5. Report improper disposal or environmental hazards
-6. Provide health and environmental tips
+Keep responses under 80 words. Be friendly and concise.`;
 
-IMPORTANT GUIDELINES:
-- Keep responses concise (2-3 sentences max)
-- Be warm and conversational
-- Ask one question at a time
-- Use simple language, avoid jargon
-- For registration, ask for: Name, Location (area in Lagos), User Type (household/pharmacy/hospital), Phone number
-- For collection points, mention areas like: Victoria Island, Lekki, Surulere, Ikeja, Yaba, etc.
-- Never make up information - if unsure, offer to connect them with the team
-- No markdown formatting - plain text only
+    const prompt = `${PHARMAECO_CONTEXT}\n\n${conversationHistoryStr}\nU: ${userMessage}\nA:`;
 
-GREETING (use once per conversation):
-"Hi! 👋 I'm PharmaEcoBot, your AI guide for safe pharmaceutical waste disposal in Nigeria. How can I help you today?
-
-You can:
-✅ Find collection points near you
-✅ Learn how to dispose waste safely
-✅ Register with PharmaEco
-✅ Report environmental hazards"`;
-
-    const prompt = `${PHARMAECO_CONTEXT}\n\nConversation history:\n${conversationHistoryStr}\n\nUser: ${userMessage}\nAssistant:`;
-
-    // Call Gemini API
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }],
-            },
-          ],
+          contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.9,
+            temperature: 0.7,
             topK: 40,
             topP: 0.95,
-            maxOutputTokens: 1024,
+            maxOutputTokens: 256,
           },
         }),
       }
@@ -140,7 +194,7 @@ You can:
     if (!res.ok) {
       const errorData = await res.json();
       console.error("❌ Gemini API Error:", errorData);
-      throw new Error(`Gemini API error: ${res.status}`);
+      throw { status: res.status, response: { data: errorData } };
     }
 
     const data = await res.json();
@@ -148,17 +202,17 @@ You can:
       data.candidates?.[0]?.content?.parts?.[0]?.text ||
       "Sorry, I couldn't generate a response.";
 
-    // Update conversation history
+    // Update history
     history.push({ role: "user", content: userMessage });
     history.push({ role: "assistant", content: botReply });
-    if (history.length > 20) history = history.slice(-20);
+    if (history.length > 10) history = history.slice(-10);
     conversationHistory.set(userId, history);
 
-    console.log(`✅ AI response generated for ${userId}`);
+    console.log(`✅ Response generated for ${userId}`);
     return botReply;
   } catch (error: any) {
-    console.error("❌ Gemini API Error:", error);
-    return "Sorry, I'm having trouble right now. Please try again in a moment or visit https://pharmaeco.org for more info! 🌱";
+    console.error("❌ AI Error:", error);
+    throw error;
   }
 }
 
@@ -169,9 +223,7 @@ async function sendWhatsAppMessage(to: string, message: string): Promise<void> {
       messaging_product: "whatsapp",
       to: to,
       type: "text",
-      text: {
-        body: message,
-      },
+      text: { body: message },
     };
 
     await axios.post(WHATSAPP_API_URL, payload, {
@@ -183,9 +235,6 @@ async function sendWhatsAppMessage(to: string, message: string): Promise<void> {
 
     console.log(`✅ Message sent to ${to}`);
   } catch (error: any) {
-    console.error(
-      "❌ Error sending message:",
-      error.response?.data || error.message
-    );
+    console.error("❌ Send error:", error.response?.data || error.message);
   }
 }
