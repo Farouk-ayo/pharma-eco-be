@@ -14,7 +14,7 @@ const router = express.Router();
 router.post("/add", createRegistration);
 
 // Protected routes - require admin authentication
-router.get("/get", verifyToken, getAllRegistrations);
+router.get("/get", getAllRegistrations);
 router.get("/get/:id", verifyToken, getRegistrationById);
 router.patch("/:id", verifyToken, updateRegistration);
 router.delete("/:id", verifyToken, deleteRegistration);
