@@ -7,6 +7,7 @@ import regRoutes from "./routes/regRoutes";
 import feedbackRoutes from "./routes/feedbackRoutes";
 import articleRoutes from "./routes/articleRoutes";
 import whatsappRoutes from "./routes/whatsappRoutes";
+import emrAuthRoutes from "./routes/emrAuthRoutes";
 
 // Load environment variables
 dotenv.config();
@@ -47,6 +48,7 @@ app.use("/register", regRoutes);
 app.use("/feedback", feedbackRoutes);
 app.use("/article", articleRoutes);
 app.use("/whatsapp", whatsappRoutes);
+app.use("/emr/auth", emrAuthRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "PharmaEco API is running" });
