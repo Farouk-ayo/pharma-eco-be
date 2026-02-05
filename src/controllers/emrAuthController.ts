@@ -5,7 +5,7 @@ import EMRUser from "../models/emrUser";
 // Register EMR User
 export const registerEMRUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { firstName, lastName, emailAddress, password } = req.body;
@@ -34,6 +34,7 @@ export const registerEMRUser = async (
       lastName,
       emailAddress,
       password,
+      authProvider: "email",
     });
 
     await user.save();
@@ -42,7 +43,7 @@ export const registerEMRUser = async (
     const token = jwt.sign(
       { id: user._id, email: user.emailAddress },
       process.env.JWT_SECRET as string,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     res.status(201).json({
@@ -70,7 +71,7 @@ export const registerEMRUser = async (
 // Login EMR User
 export const loginEMRUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { emailAddress, password } = req.body;
@@ -93,6 +94,15 @@ export const loginEMRUser = async (
       return;
     }
 
+    // check if email already used for google signup
+    if (user.authProvider === "google") {
+      res.status(400).json({
+        success: false,
+        message:
+          "This email is registered with Google. Please sign in with Google.",
+      });
+      return;
+    }
     // Check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
@@ -107,7 +117,7 @@ export const loginEMRUser = async (
     const token = jwt.sign(
       { id: user._id, email: user.emailAddress },
       process.env.JWT_SECRET as string,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     res.status(200).json({
@@ -132,10 +142,87 @@ export const loginEMRUser = async (
   }
 };
 
+export const googleAuthEMRUser = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { firstName, lastName, emailAddress, googleId } = req.body;
+
+    if (!firstName || !lastName || !emailAddress || !googleId) {
+      res.status(400).json({
+        success: false,
+        message: "Missing required Google authentication data",
+      });
+      return;
+    }
+
+    let user = await EMRUser.findOne({ emailAddress });
+
+    if (user) {
+      if (user.authProvider === "email") {
+        res.status(400).json({
+          success: false,
+          message:
+            "This email is already registered with email/password. Please sign in with your password.",
+        });
+        return;
+      }
+
+      if (user.googleId !== googleId) {
+        res.status(400).json({
+          success: false,
+          message: "Account verification failed. Please try again.",
+        });
+        return;
+      }
+    } else {
+      user = new EMRUser({
+        firstName,
+        lastName,
+        emailAddress,
+        googleId,
+        authProvider: "google",
+        password: Math.random().toString(36).slice(-12),
+      });
+
+      await user.save();
+    }
+
+    const token = jwt.sign(
+      { id: user._id, email: user.emailAddress },
+      process.env.JWT_SECRET as string,
+      { expiresIn: "7d" },
+    );
+
+    res.status(200).json({
+      success: true,
+      message:
+        user.createdAt.getTime() === user.updatedAt.getTime()
+          ? "Account created successfully"
+          : "Login successful",
+      data: {
+        token,
+        user: {
+          id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          emailAddress: user.emailAddress,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Google Auth error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
 
 export const getCurrentUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = req.admin?.id; // From JWT middleware

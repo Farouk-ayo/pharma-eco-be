@@ -6,6 +6,8 @@ export interface IEMRUser extends Document {
   lastName: string;
   emailAddress: string;
   password: string;
+  googleId?: string;
+  authProvider: "email" | "google";
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -35,10 +37,19 @@ const EMRUserSchema: Schema = new Schema(
       required: true,
       minlength: 6,
     },
+    googleId: {
+      type: String,
+      sparse: true,
+    },
+    authProvider: {
+      type: String,
+      enum: ["email", "google"],
+      default: "email",
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Hash password before saving
@@ -52,7 +63,7 @@ EMRUserSchema.pre<IEMRUser>("save", async function (next) {
 
 // Compare password method
 EMRUserSchema.methods.comparePassword = async function (
-  candidatePassword: string
+  candidatePassword: string,
 ): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);
 };
