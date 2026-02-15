@@ -54,19 +54,7 @@ export const EmailLayout: React.FC<Readonly<EmailLayoutProps>> = ({
             backgroundColor: "#ffffff",
           }}
         >
-          <Section
-            style={{
-              padding: "30px 20px 10px 20px",
-              backgroundColor: "#f8f9fa",
-            }}
-          >
-            <Img
-              src={`${process.env.FRONTEND_URL}/pharma-eco-guard-d.webp`}
-              width="100%"
-              alt="PharmaEcoGuard"
-              style={{ display: "block", maxWidth: "100%", height: "auto" }}
-            />
-          </Section>
+       
           <Section
             style={{
               padding: "0px",
