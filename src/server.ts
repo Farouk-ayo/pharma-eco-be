@@ -1,6 +1,14 @@
 import express, { Application } from "express";
 import dotenv from "dotenv";
+
 import cors from "cors";
+
+dotenv.config();
+
+import passport from "passport";
+import "./config/passport";
+
+
 import connectDB from "./config/database";
 import authRoutes from "./routes/authRoutes";
 import regRoutes from "./routes/regRoutes";
@@ -8,9 +16,6 @@ import feedbackRoutes from "./routes/feedbackRoutes";
 import articleRoutes from "./routes/articleRoutes";
 import whatsappRoutes from "./routes/whatsappRoutes";
 import emrAuthRoutes from "./routes/emrAuthRoutes";
-
-// Load environment variables
-dotenv.config();
 
 // Initialize express
 const app: Application = express();
@@ -38,6 +43,8 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "100mb" }));
 app.use(express.urlencoded({ extended: true, limit: "100mb" }));
+app.use(passport.initialize());
+
 
 // Connect to MongoDB
 connectDB();

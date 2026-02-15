@@ -8,6 +8,10 @@ export interface IEMRUser extends Document {
   password: string;
   googleId?: string;
   authProvider: "email" | "google";
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
+  resetPasswordOTP?: string;
+  resetPasswordOTPExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -45,6 +49,18 @@ const EMRUserSchema: Schema = new Schema(
       type: String,
       enum: ["email", "google"],
       default: "email",
+    },
+     resetPasswordToken: {
+      type: String,
+    },
+    resetPasswordExpires: {
+      type: Date,
+    },
+    resetPasswordOTP: {
+      type: String,
+    },
+    resetPasswordOTPExpires: {
+      type: Date,
     },
   },
   {
