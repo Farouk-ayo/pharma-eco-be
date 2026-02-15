@@ -61,7 +61,7 @@ export const EmailLayout: React.FC<Readonly<EmailLayoutProps>> = ({
             }}
           >
             <Img
-              src={`${process.env.FRONTEND_URL}/pharma-eco-guard-d.svg`}
+              src={`${process.env.FRONTEND_URL}/pharma-eco-guard-d.webp`}
               width="100%"
               alt="PharmaEcoGuard"
               style={{ display: "block", maxWidth: "100%", height: "auto" }}
